@@ -8,6 +8,7 @@ from tkinter import filedialog
 from tkinter import *
 from tkinter.ttk import *
 import time
+import KeysightLib as key
 
 
 class App(tk.Tk):
@@ -15,8 +16,8 @@ class App(tk.Tk):
         super().__init__()
 
         self.title("Keysight App")
-        self.geometry('1200x375')
-        self.resizable(False, False)
+        self.geometry('1300x500')
+        self.resizable(True, True)
 
         self.iconbitmap('iconEOTS.ico')
 
@@ -34,21 +35,33 @@ class App(tk.Tk):
         self.wav1490_btn = []
         self.wav1550_btn = []
         self.wav1625_btn = []
+        self.avg_btn = []
+        self.range_btn = []
         self.W_btn = []
         self.db_btn = []
         self.dbm_btn = []
         self.dark_btn = []
         self.ref_btn = []
+        self.start_btn = []
+        self.play_btn = []
+        self.stop_btn = []
+
+        self.device = StringVar(self, 'test')
 
         # Layout of window, 1 column per powermeter
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
         self.columnconfigure(3, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
         for p in range(4):
             self.powermeter_frame = self.create_powermeter_frame(p)
-            self.powermeter_frame.grid(column=p, row=0, sticky=tk.N, padx=2, pady=8)
+            self.powermeter_frame.grid(column=p, row=1, sticky=tk.N, padx=2, pady=8)
+
+        self.setup_frame = self.create_setup_frame()
+        self.setup_frame.grid(column=0, row=0, sticky=tk.NSEW, padx=2, pady=8)
 
     def create_powermeter_frame(self, pownum):
         frame = ttk.LabelFrame(self, text='Powermeter '+str(pownum+1))
@@ -57,6 +70,7 @@ class App(tk.Tk):
         frame.columnconfigure(2, weight=1)
         frame.columnconfigure(3, weight=1)
         frame.columnconfigure(4, weight=1)
+        frame.rowconfigure(0, weight=1)
 
         self.powerread.append(StringVar(self, '---.---'))
         self.unit.append(StringVar(self, 'dBm'))
@@ -65,8 +79,11 @@ class App(tk.Tk):
         self.wav.append(StringVar(self, '----'))
         self.avgtime.append(StringVar(self, '---'))
 
+        s = ttk.Style()
+        s.configure('big.TButton', font=('Calibri', 12))
+
         text_power = Text(frame, height=1, font='Calibri 35')
-        text_power.grid(column=0, row=0, columnspan=5, sticky=tk.E)
+        text_power.grid(column=0, row=0, columnspan=5, sticky=tk.NSEW)
         text_power.tag_configure('right', justify='right', foreground='grey')
         text_power.insert(END, self.powerread[pownum].get() + ' ' + self.unit[pownum].get())
         text_power.config(state=DISABLED)
@@ -80,23 +97,23 @@ class App(tk.Tk):
         wav_entry.configure(justify=RIGHT)
         wav_entry.bind("<Button-1>", self.on_click)
 
-        wav850_btn = ttk.Button(frame, text='850nm', command=lambda: self.wav(pownum, '850'))
+        wav850_btn = ttk.Button(frame, text='850nm', style='big.TButton', command=lambda: key.wav(pownum, '850'))
         wav850_btn.grid(column=0, row=2)
         wav850_btn['state'] = tk.DISABLED
         self.wav850_btn.append(wav850_btn)
-        wav1310_btn = ttk.Button(frame, text='1310nm', command=lambda: self.wav(pownum, '1310'))
+        wav1310_btn = ttk.Button(frame, text='1310nm', style='big.TButton', command=lambda: key.wav(pownum, '1310'))
         wav1310_btn.grid(column=1, row=2)
         wav1310_btn['state'] = tk.DISABLED
         self.wav1310_btn.append(wav1310_btn)
-        wav1490_btn = ttk.Button(frame, text='1490nm', command=lambda: self.wav(pownum, '1490'))
+        wav1490_btn = ttk.Button(frame, text='1490nm', style='big.TButton', command=lambda: key.wav(pownum, '1490'))
         wav1490_btn.grid(column=2, row=2)
         wav1490_btn['state'] = tk.DISABLED
         self.wav1490_btn.append(wav1490_btn)
-        wav1550_btn = ttk.Button(frame, text='1550nm', command=lambda: self.wav(pownum, '1550'))
+        wav1550_btn = ttk.Button(frame, text='1550nm', style='big.TButton', command=lambda: key.wav(pownum, '1550'))
         wav1550_btn.grid(column=3, row=2)
         wav1550_btn['state'] = tk.DISABLED
         self.wav1550_btn.append(wav1550_btn)
-        wav1625_btn = ttk.Button(frame, text='1625nm', command=lambda: self.wav(pownum, '1625'))
+        wav1625_btn = ttk.Button(frame, text='1625nm', style='big.TButton', command=lambda: key.wav(pownum, '1625'))
         wav1625_btn.grid(column=4, row=2)
         wav1625_btn['state'] = tk.DISABLED
         self.wav1625_btn.append(wav1625_btn)
@@ -107,6 +124,11 @@ class App(tk.Tk):
         avg_entry.grid(column=3, row=3, columnspan=2, sticky=tk.W)
         avg_entry.configure(justify=RIGHT)
         avg_entry.bind("<Button-1>", self.on_click)
+        # avg_entry.bind('<Enter>', key.setAvg(pownum, avg_entry.get()))
+        avg_btn = ttk.Button(frame, text='\u2261', style='big.TButton', command=lambda: self.avgList(pownum))
+        avg_btn.grid(column=2, row=3)
+        avg_btn['state'] = tk.DISABLED
+        self.avg_btn.append(avg_btn)
 
         ttk.Label(frame, text=self.range[pownum].get(), font='Calibri 15').grid(column=0, row=4, columnspan=2, sticky=tk.W)
         range_entry = ttk.Entry(frame, foreground='grey', font='Calibri 15')
@@ -114,34 +136,70 @@ class App(tk.Tk):
         range_entry.grid(column=3, row=4, columnspan=2, sticky=tk.W)
         range_entry.configure(justify=RIGHT)
         range_entry.bind("<Button-1>", self.on_click)
+        # range_entry.bind('<Enter>', key.setRange(pownum, range_entry.get()))
+        range_btn = ttk.Button(frame, text='\u2261', style='big.TButton', command=lambda: self.rangeList(pownum))
+        range_btn.grid(column=2, row=4)
+        range_btn['state'] = tk.DISABLED
+        self.range_btn.append(range_btn)
 
         ttk.Label(frame, text='Power Unit', font='Calibri 15').grid(column=0, row=5, columnspan=2, sticky=tk.W)
-        W_btn = ttk.Button(frame, text='W', command=lambda: self.setUnit(pownum, 'W'))
+        W_btn = ttk.Button(frame, text='W', style='big.TButton', command=lambda: key.setUnit(pownum, 'W'))
         W_btn.grid(column=2, row=5, sticky=tk.W + E)
         W_btn['state'] = tk.DISABLED
         self.W_btn.append(W_btn)
-        db_btn = ttk.Button(frame, text='dB', command=lambda: self.setUnit(pownum, 'dB'))
+        db_btn = ttk.Button(frame, text='dB', style='big.TButton', command=lambda: key.setUnit(pownum, 'dB'))
         db_btn.grid(column=3, row=5, sticky=tk.W + E)
         db_btn['state'] = tk.DISABLED
         self.db_btn.append(db_btn)
-        dbm_btn = ttk.Button(frame, text='dBm', command=lambda: self.setUnit(pownum, 'dBm'))
+        dbm_btn = ttk.Button(frame, text='dBm', style='big.TButton', command=lambda: key.setUnit(pownum, 'dBm'))
         dbm_btn.grid(column=4, row=5, sticky=tk.W + E)
         dbm_btn['state'] = tk.DISABLED
         self.dbm_btn.append(dbm_btn)
 
-        dark_btn = ttk.Button(frame, text='Dark', command=lambda: self.dark(pownum))
-        dark_btn.grid(column=0, row=6, columnspan=2, sticky=tk.W + E)
+        dark_btn = ttk.Button(frame, text='Dark', style='big.TButton', command=lambda: key.dark(pownum))
+        dark_btn.grid(column=0, row=6, columnspan=2, sticky=tk.W + E, ipady=10)
         dark_btn['state'] = tk.DISABLED
         self.dark_btn.append(dark_btn)
-
-        ref_btn = ttk.Button(frame, text='Reference', command=lambda: self.ref(pownum))
-        ref_btn.grid(column=3, row=6, columnspan=2, sticky=tk.W + E)
+        ref_btn = ttk.Button(frame, text='Reference', style='big.TButton', command=lambda: key.ref(pownum))
+        ref_btn.grid(column=3, row=6, columnspan=2, sticky=tk.W + E, ipady=10)
         ref_btn['state'] = tk.DISABLED
         self.ref_btn.append(ref_btn)
 
+        s = ttk.Style()
+        s.configure('big.TButton', font=('Calibri', 12))
+        start_btn = ttk.Button(frame, text='Start Live', style='big.TButton', command=lambda: key.live(pownum))
+        start_btn.grid(column=0, row=7, columnspan=3, rowspan=2, sticky=tk.NSEW, ipady=15)
+        start_btn['state'] = tk.DISABLED
+        self.start_btn.append(start_btn)
+        play_btn = ttk.Button(frame, text='\u23ef', style='big.TButton', command=lambda: key.live(pownum))
+        play_btn.grid(column=3, row=7, rowspan=2, sticky=tk.NSEW, ipady=15)
+        play_btn['state'] = tk.DISABLED
+        self.play_btn.append(play_btn)
+        stop_btn = ttk.Button(frame, text='\u23f9', style='big.TButton', command=lambda: key.live(pownum))
+        stop_btn.grid(column=4, row=7, rowspan=2, sticky=tk.NSEW, ipady=15)
+        stop_btn['state'] = tk.DISABLED
+        self.stop_btn.append(stop_btn)
 
         for widget in frame.winfo_children():
-            widget.grid(padx=0, pady=2)
+            widget.grid(padx=1, pady=2)
+
+        return frame
+
+    def create_setup_frame(self):
+        frame = ttk.LabelFrame(self, text='Instrument Setup')
+        frame.columnconfigure(0, weight=1)
+        frame.columnconfigure(1, weight=1)
+
+        s = ttk.Style()
+        s.configure('bbig.TButton', font=('Calibri', 15))
+
+        ttk.Button(frame, text='Detect Device', style='bbig.TButton', command=lambda: self.setup_device_usb()).grid(column=0, row=0, sticky=tk.EW)
+        device_lbl = ttk.Label(frame, textvariable=self.device, font='Calibri 15', justify='center')
+        device_lbl.grid(column=1, row=0)
+
+
+
+
 
         return frame
 
@@ -166,7 +224,7 @@ class App(tk.Tk):
                 pass
             return instrument
 
-    def setup_device_usb(self, devices):
+    def setup_device_usb(self):
         rm = vs.ResourceManager()
         instruments = rm.list_resources()
         if any(s.startswith('USB0::0x29CE') for s in instruments):
