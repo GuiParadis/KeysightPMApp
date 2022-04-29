@@ -35,8 +35,11 @@ class App(tk.Tk):
         self.wav1490_btn = []
         self.wav1550_btn = []
         self.wav1625_btn = []
+        self.wav_entry = []
         self.avg_btn = []
+        self.avg_entry = []
         self.range_btn = []
+        self.range_entry = []
         self.W_btn = []
         self.db_btn = []
         self.dbm_btn = []
@@ -56,6 +59,7 @@ class App(tk.Tk):
         self.instrumentip = None
 
         self.avglist = None
+        self.rangelist = None
 
         # Layout of window, 1 column per powermeter
         self.columnconfigure(0, weight=1)
@@ -83,8 +87,8 @@ class App(tk.Tk):
 
         self.powerread.append(StringVar(self, '---.---'))
         self.unit.append(StringVar(self, 'dBm'))
-        self.range.append(StringVar(self, 'Auto-Range'))
-        self.currentrange.append(StringVar(self, '--- dBm'))
+        self.range.append(StringVar(self, 'Auto Range'))
+        self.currentrange.append(StringVar(self, 'Auto'))
         self.wav.append(StringVar(self, '----'))
         self.avgtime.append(StringVar(self, '---'))
 
@@ -107,6 +111,7 @@ class App(tk.Tk):
         wav_entry.grid(column=3, row=1, columnspan=2, sticky=tk.W)
         wav_entry.configure(justify=RIGHT)
         wav_entry.bind("<Button-1>", self.on_click)
+        self.wav_entry.append(wav_entry)
 
         # Preset wavelength buttons
         wav850_btn = ttk.Button(frame, text='850nm', style='big.TButton', command=lambda: self.setwav(pownum, '850'))
@@ -137,23 +142,25 @@ class App(tk.Tk):
         avg_entry.grid(column=3, row=3, columnspan=2, sticky=tk.W)
         avg_entry.configure(justify=RIGHT)
         avg_entry.bind("<Button-1>", self.on_click)
-        # avg_entry.bind('<Enter>', self.setAvg(pownum, avg_entry.get()))
+        avg_entry.bind('<Return>', lambda event: self.closeavg(pownum))
+        self.avg_entry.append(avg_entry)
         avg_btn = ttk.Button(frame, text='\u2261', style='big.TButton', command=lambda: self.avgwindow(pownum))
         avg_btn.grid(column=2, row=3)
         avg_btn['state'] = tk.NORMAL
         self.avg_btn.append(avg_btn)
 
         # Gain Range Entry and browse button
-        ttk.Label(frame, text=self.range[pownum].get(), font='Calibri 15').grid(column=0, row=4, columnspan=2, sticky=tk.W)
+        ttk.Label(frame, textvariable=self.range[pownum], font='Calibri 15').grid(column=0, row=4, columnspan=2, sticky=tk.W)
         range_entry = ttk.Entry(frame, foreground='grey', font='Calibri 15')
         range_entry.insert(END, self.currentrange[pownum].get())
         range_entry.grid(column=3, row=4, columnspan=2, sticky=tk.W)
         range_entry.configure(justify=RIGHT)
         range_entry.bind("<Button-1>", self.on_click)
-        # range_entry.bind('<Enter>', self.setRange(pownum, range_entry.get()))
-        range_btn = ttk.Button(frame, text='\u2261', style='big.TButton', command=lambda: self.rangelist(pownum))
+        range_entry.bind('<Return>', lambda event: self.closerange(pownum))
+        self.range_entry.append(range_entry)
+        range_btn = ttk.Button(frame, text='\u2261', style='big.TButton', command=lambda: self.rangewindow(pownum))
         range_btn.grid(column=2, row=4)
-        range_btn['state'] = tk.DISABLED
+        range_btn['state'] = tk.NORMAL
         self.range_btn.append(range_btn)
 
         # Power Unit buttons
@@ -224,7 +231,7 @@ class App(tk.Tk):
         ip_entry.insert(END, 'xxx.xxx.xx.xxx')
         ip_entry.grid(column=1, row=0, sticky=tk.EW)
         ip_entry.bind("<Button-1>", self.on_click)
-        ip_entry.bind('<Return>', (lambda event: self.setup_device(ip_entry)))
+        ip_entry.bind('<Return>', lambda event: self.setup_device(ip_entry))
         self.deviceip_lbl = ttk.Label(frame, textvariable=self.deviceip, font='Calibri 15', justify='center')
         self.deviceip_lbl.grid(column=1, row=1)
         ttk.Button(frame, text='Test Connection', style='bbig.TButton', width=20, command=lambda: self.setup_device(ip_entry)).grid(column=2, row=0, sticky=tk.EW)
@@ -322,41 +329,103 @@ class App(tk.Tk):
         frame.columnconfigure(2, weight=1)
 
         avgval = (
-            '1us',
-            '10us',
-            '20us',
-            '50us',
-            '100us',
-            '200us',
-            '500us',
-            '1ms',
-            '10ms',
-            '20ms',
-            '50ms',
-            '100ms',
-            '200ms',
-            '500ms',
-            '1s',
-            '2s',
-            '5s',
-            '10s'
+            '1 us',
+            '10 us',
+            '20 s',
+            '50 us',
+            '100 us',
+            '200 us',
+            '500 us',
+            '1 ms',
+            '10 ms',
+            '20 ms',
+            '50 ms',
+            '100 ms',
+            '200 ms',
+            '500 ms',
+            '1 s',
+            '2 s',
+            '5 s',
+            '10 s'
         )
 
         avgval_var = StringVar(avglistwin, value=avgval)
 
         self.avglist = Listbox(frame, listvariable=avgval_var, width=15, height=18, justify='center', selectmode='single', font='Calibri 15')
         self.avglist.grid(column=0, row=0, columnspan=2, rowspan=18, sticky=tk.NSEW)
-        # avglist.bind('<<ListBoxSelect>>', self.selectavg)
 
         w = ttk.Style()
-        w.configure('bbbig.TButton', font=('Calibri', 12))
-        ttk.Button(frame, text='Ok', width=12, style='bbbig.TButton', command=lambda: self.close(pnum)).grid(column=2, row=0, sticky=tk.E, padx=6, pady=5)
-        ttk.Button(frame, text='Cancel', width=12, style='bbbig.TButton', command=lambda: self.cancel(pnum)).grid(column=2, row=1, sticky=tk.E, padx=6, pady=5)
+        w.configure('bbbig.TButton', font=('Calibri', 15))
+        ttk.Button(frame, text='Ok', width=12, style='bbbig.TButton', command=lambda: self.closeavg(pnum, avglistwin)).grid(column=2, row=0, sticky=tk.E, padx=6, pady=2)
+        ttk.Button(frame, text='Cancel', width=12, style='bbbig.TButton', command=lambda: self.cancel(avglistwin)).grid(column=2, row=1, sticky=tk.E, padx=6, pady=2)
 
+    def rangewindow(self, pnum):
+        rangelistwin = tk.Tk()
+        rangelistwin.wm_title('Gain Range PM ' + str(pnum+1))
+        rangelistwin.geometry('250x235')
+        rangelistwin.resizable(True, True)
+        rangelistwin.iconbitmap('iconEOTS.ico')
 
+        frame = ttk.Frame(rangelistwin)
+        frame.grid(column=0, row=0)
+        frame.columnconfigure(0, weight=1)
+        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(2, weight=1)
 
-    # def close(self, pnum):
-    #     selectavg = self.avglist.curselection()
+        rangeval = (
+            'Auto Range',
+            '+10 dBm',
+            '0 dBm',
+            '-10 dBm',
+            '-20 dBm',
+            '-30 dBm',
+            '-40 dBm',
+            '-50 dBm',
+            '-60 dBm'
+        )
+
+        rangeval_var = StringVar(rangelistwin, value=rangeval)
+
+        self.rangelist = Listbox(frame, listvariable=rangeval_var, width=15, height=9, justify='center', selectmode='single', font='Calibri 15')
+        self.rangelist.grid(column=0, row=0, columnspan=2, rowspan=9, sticky=tk.NSEW)
+
+        z = ttk.Style()
+        z.configure('bbbig.TButton', font=('Calibri', 15))
+        ttk.Button(frame, text='Ok', width=12, style='bbbig.TButton', command=lambda: self.closerange(pnum, rangelistwin)).grid(column=2, row=0, sticky=tk.E, padx=6, pady=2)
+        ttk.Button(frame, text='Cancel', width=12, style='bbbig.TButton', command=lambda: self.cancel(rangelistwin)).grid(column=2, row=1, sticky=tk.E, padx=6, pady=2)
+
+    def closeavg(self, pnum, win=None):
+        self.avg_entry[pnum].delete(0, END)
+        self.avg_entry[pnum].insert(0, self.avglist.get(self.avglist.curselection()))
+        if win is not None:
+            win.destroy()
+
+    def closerange(self, pnum, win=None):
+        if win is not None:
+            self.range_entry[pnum].delete(0, END)
+            if self.rangelist.get(self.rangelist.curselection()) == 'Auto Range':
+                self.range_entry[pnum].insert(0, 'Auto')
+                self.range_entry[pnum].configure(foreground='grey')
+                self.range[pnum].set('Auto Range')
+                self.range_entry[pnum].bind("<Button-1>", self.on_click)
+            else:
+                self.range_entry[pnum].insert(0, self.rangelist.get(self.rangelist.curselection()))
+                self.range_entry[pnum].configure(foreground='black')
+                self.range[pnum].set('Manual Range')
+                self.range_entry[pnum].bind("<Button-1>", self.on_click)
+            win.destroy()
+        else:
+            if self.range_entry[pnum].get() == 'Auto-Range' or self.range_entry[pnum].get() == 'Auto':
+                self.range_entry[pnum].configure(foreground='grey')
+                self.range[pnum].set('Auto Range')
+                self.range_entry[pnum].bind("<Button-1>", self.on_click)
+            else:
+                self.range[pnum].set('Manual Range')
+                self.range_entry[pnum].configure(foreground='black')
+                self.range_entry[pnum].bind("<Button-1>", self.on_click)
+
+    def cancel(self, win):
+        win.destroy()
 
 
 if __name__ == "__main__":
