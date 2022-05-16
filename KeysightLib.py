@@ -1,4 +1,6 @@
 import utilities as util
+import math
+
 
 def setunit(device, pnum, unit):
     if unit == 'dBm':
@@ -18,12 +20,12 @@ def setrange(device, pnum, powrange):
 
 
 def setwav(device, pnum, wav):
-    minwav = device.query(':SENSe' + str(pnum+1) + ':POWer:WAVelength? min')
-    maxwav = device.query(':SENSe' + str(pnum+1) + ':POWer:WAVelength? max')
-    if wav < minwav:
-        wav = minwav
-    elif wav > maxwav:
-        wav = maxwav
+    minwav = float(device.query(':SENSe' + str(pnum+1) + ':POWer:WAVelength? min'))
+    maxwav = float(device.query(':SENSe' + str(pnum+1) + ':POWer:WAVelength? max'))
+    if float(wav) * 1e-9 < minwav:
+        wav = minwav/1e-9
+    elif float(wav) * 1e-9 > maxwav:
+        wav = maxwav/1e-9
     device.write(':SENSe' + str(pnum+1) + ':POWer:WAVelength ' + str(wav) + 'nm')
 
 
@@ -37,13 +39,12 @@ def dark(device, pnum):
 
 
 def readpow(device):
-    # readpow = device.query(':READ' + str(pnum+1) + ':POW?')
-    # util.WaitOperationComplete(device)
-    readpow = device.query(':FETCh:POWer:ALL?')
-    return readpow
-
-# def reference(device, pnum):
+    # readpow = {'mW': '', 'dBm': ''}
+    # read = device.query_binary_values(':FETCh:POWer:ALL?')
+    read = [i for i in device.query_binary_values(':FETCh:POWer:ALL?') if i != 0]
+    # readpow['dBm'] = [10 * math.log10(1000 * i) for i in read]
+    return read
 
 
 def conttrig(device, pnum, stat):
-    device.write(':INITiate' + str(pnum) + ':CONTinuous ' + str(stat))
+    device.write(':INITiate' + str(pnum+1) + ':CONTinuous ' + str(stat))

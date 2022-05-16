@@ -210,7 +210,7 @@ class App(tk.Tk):
         start_btn.grid(column=0, row=7, columnspan=3, rowspan=2, sticky=tk.NSEW, ipady=15)
         start_btn['state'] = tk.DISABLED
         self.start_btn.append(start_btn)
-        play_btn = ttk.Button(frame, text='\u23ef', style='big.TButton', command=lambda: self.pauseplay(pownum, self.live_thread[pownum]))
+        play_btn = ttk.Button(frame, text='\u23ef', style='big.TButton', command=lambda: self.pauseplay(pownum))
         play_btn.grid(column=3, row=7, rowspan=2, sticky=tk.NSEW, ipady=15)
         play_btn['state'] = tk.DISABLED
         self.play_btn.append(play_btn)
@@ -408,29 +408,21 @@ class App(tk.Tk):
         ttk.Button(frame, text='Cancel', width=12, style='bbbig.TButton', command=lambda: self.cancel(rangelistwin)).grid(column=2, row=1, sticky=tk.E, padx=6, pady=2)
 
     def closeavg(self, pnum, win=None):
-        # if self.instrument is not None:
-        #     device = self.instrument
-        # else:
-        #     device = self.instrumentip
         if win is not None:
             self.avg_entry[pnum].delete(0, END)
             self.avg_entry[pnum].insert(0, self.avglist.get(self.avglist.curselection()))
             self.avg_entry[pnum].bind("<Button-1>", self.on_click)
             self.avg_entry[pnum].bind('<Return>', lambda event: self.closeavg(pnum))
             self.params[pnum]['average'] = self.avg_entry[pnum].get().replace(' ', '')
-            # key.setatime(device, pnum, self.avg_entry[pnum].get().replace(' ', ''))
+            self.params_queue.put_nowait([self.params[pnum], pnum])
             win.destroy()
         else:
             self.avg_entry[pnum].bind("<Button-1>", self.on_click)
             self.avg_entry[pnum].bind('<Return>', lambda event: self.closeavg(pnum))
             self.params[pnum]['average'] = self.avg_entry[pnum].get().replace(' ', '')
-            # key.setatime(device, pnum, self.avg_entry[pnum].get().replace(' ', ''))
+            self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def closerange(self, pnum, win=None):
-        # if self.instrument is not None:
-        #     device = self.instrument
-        # else:
-        #     device = self.instrumentip
         if win is not None:
             self.range_entry[pnum].delete(0, END)
             if self.rangelist.get(self.rangelist.curselection()) == 'Auto Range':
@@ -440,7 +432,7 @@ class App(tk.Tk):
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get()
-                # key.setrange(device, pnum, self.range_entry[pnum].get().replace(' ', ''))
+                self.params_queue.put_nowait([self.params[pnum], pnum])
             else:
                 self.range_entry[pnum].insert(0, self.rangelist.get(self.rangelist.curselection()))
                 self.range_entry[pnum].configure(foreground='black')
@@ -448,7 +440,7 @@ class App(tk.Tk):
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get().replace(' ', '')
-                # key.setrange(device, pnum, self.range_entry[pnum].get().replace(' ', ''))
+                self.params_queue.put_nowait([self.params[pnum], pnum])
             win.destroy()
         else:
             if self.range_entry[pnum].get() == 'Auto-Range' or self.range_entry[pnum].get() == 'Auto':
@@ -457,14 +449,14 @@ class App(tk.Tk):
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get()
-                # key.setrange(device, pnum, self.range_entry[pnum].get().replace(' ', ''))
+                self.params_queue.put_nowait([self.params[pnum], pnum])
             else:
                 self.range[pnum].set('Manual Range')
                 self.range_entry[pnum].configure(foreground='black')
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get().replace(' ', '')
-                # key.setrange(device, pnum, self.range_entry[pnum].get().replace(' ', ''))
+                self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def cancel(self, win):
         win.destroy()
@@ -472,11 +464,7 @@ class App(tk.Tk):
     def setunit(self, pnum, unit):
         self.unit[pnum].set(unit)
         self.params[pnum]['unit'] = unit
-        # if self.instrument is not None:
-        #     device = self.instrument
-        # else:
-        #     device = self.instrumentip
-        # key.setunit(device, pnum, unit)
+        self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def setwav(self, pnum, wav):
         self.wav[pnum].set(wav)
@@ -484,12 +472,8 @@ class App(tk.Tk):
         self.wav_entry[pnum].insert(0, self.wav[pnum].get())
         self.wav_entry[pnum].bind("<Button-1>", self.on_click)
         self.wav_entry[pnum].bind('<Return>', lambda event: self.setwav(pnum, self.wav_entry[pnum].get()))
-        # if self.instrument is not None:
-        #     device = self.instrument
-        # else:
-        #     device = self.instrumentip
         self.params[pnum]['wavelength'] = wav
-        # key.setwav(device, pnum, wav)
+        self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def setatime(self, pnum, atime):
         atime.replace(' ', '')
@@ -498,12 +482,8 @@ class App(tk.Tk):
         self.avg_entry[pnum].insert(0, self.avgtime[pnum].get())
         self.avg_entry[pnum].bind("<Button-1>", self.on_click)
         self.avg_entry[pnum].bind('<Return>', lambda event: self.setatime(pnum, self.avg_entry[pnum].get()))
-        # if self.instrument is not None:
-        #     device = self.instrument
-        # else:
-        #     device = self.instrumentip
         self.params[pnum]['average'] = atime
-        # key.setatime(device, pnum, atime)
+        self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def dark(self, pnum):
         self.wav850_btn[pnum]['state'] = tk.DISABLED
@@ -524,10 +504,10 @@ class App(tk.Tk):
         else:
             device = self.instrumentip
         if self.state[pnum]:
-            self.pauseplay(pnum, self.live_thread[pnum])
+            self.pauseplay(pnum)
             self.powerread[pnum].set('Darking..')
             key.dark(device, pnum)
-            self.pauseplay(pnum, self.live_thread[pnum])
+            self.pauseplay(pnum)
         else:
             self.powerread[pnum].set('Darking..')
             key.dark(device, pnum)
@@ -545,23 +525,23 @@ class App(tk.Tk):
         self.stop_btn[pnum]['state'] = tk.NORMAL
         self.play_btn[pnum]['state'] = tk.NORMAL
 
-    def monitor(self, thread, pnum):
-        if thread.is_alive() and self.state[pnum]:
+    def monitor(self, thread):
+        if thread.is_alive() and any(self.state):
             try:
-                try:
-                    e = self.except_queue.get_nowait()
-                    self.device.set(str(e))
-                    self.device_lbl.configure(foreground='red')
-                    pass
-                except queue.Empty:
-                    pass
-                power = self.pow_queue.get_nowait()
-                self.powerread[pnum].set(str(power))
-                self.after(25, lambda: self.monitor(thread, pnum))
+                e = self.except_queue.get_nowait()
+                self.device.set(str(e))
+                self.device_lbl.configure(foreground='red')
+                pass
             except queue.Empty:
-                self.after(25, lambda: self.monitor(thread, pnum))
-
-
+                pass
+            try:
+                power = self.pow_queue.get_nowait()
+                for p in range(4):
+                    if self.state[p]:
+                        self.powerread[p].set(str(round(power[p], 3)))
+                self.after(25, lambda: self.monitor(thread))
+            except queue.Empty:
+                self.after(25, lambda: self.monitor(thread))
         else:
           pass
 
@@ -581,39 +561,46 @@ class App(tk.Tk):
         self.stop_btn[pnum]['state'] = tk.NORMAL
         self.play_btn[pnum]['state'] = tk.NORMAL
         self.state[pnum] = True
-        if self.instrument is not None:
-            device = self.instrument
+        if self.live_thread is not None:
+            pass
         else:
-            device = self.instrumentip
-        self.setwav(pnum, '1550')
-        self.setunit(pnum, 'dBm')
-        self.setatime(pnum, '1ms')
-        self.closerange(pnum)
-        self.live_thread = Live(device, self.state, self.params, self.stat_queue, self.pow_queue, self.except_queue, self.params_queue)
-        self.live_thread.start()
-        self.monitor(self.live_thread, pnum)
-
-    def pauseplay(self, pnum, thread):
-        if self.state[pnum]:
-            self.state[pnum] = not self.state[pnum]
-            self.stat_queue[pnum].put(self.state[pnum])
-            while thread.is_alive():
-                time.sleep(0.05)
-        else:
-            self.state[pnum] = not self.state[pnum]
             if self.instrument is not None:
                 device = self.instrument
             else:
                 device = self.instrumentip
-            while not self.pow_queue[pnum].empty():
+            for p in range(4):
+                # self.setwav(p, '1550')
+                self.params[p]['wavelength'] = '1550'
+                # self.setunit(p, 'dBm')
+                self.params[p]['unit'] = 'dBm'
+                # self.setatime(p, '1ms')
+                self.params[p]['average'] = '1ms'
+                # self.closerange(p)
+                self.params[p]['range'] = 'Auto'
+            # self.params_queue.put_nowait(self.params)
+            self.live_thread = Live(device, self.state, self.params, self.stat_queue, self.pow_queue, self.except_queue, self.params_queue)
+            self.live_thread.start()
+            self.monitor(self.live_thread)
+
+    def pauseplay(self, pnum):
+        if not any(self.state):
+            self.state[pnum] = not self.state[pnum]
+            self.stat_queue.put(self.state)
+            if self.instrument is not None:
+                device = self.instrument
+            else:
+                device = self.instrumentip
+            while not self.pow_queue.empty():
                 try:
-                    self.pow_queue[pnum].get(False)
+                    self.pow_queue.get(False)
                 except queue.Empty:
                     continue
-                self.pow_queue[pnum].task_done()
-            self.live_thread[pnum] = Live(device, pnum, self.stat_queue[pnum], self.pow_queue[pnum], self.except_queue[pnum])
-            self.live_thread[pnum].start()
-            self.monitor(self.live_thread[pnum], pnum)
+                self.pow_queue.task_done()
+            self.live_thread = Live(device, self.state, self.params, self.stat_queue, self.pow_queue, self.except_queue, self.params_queue)
+            self.live_thread.start()
+            self.monitor(self.live_thread)
+        else:
+            self.state[pnum] = not self.state[pnum]
 
 
 class Live(Thread):
@@ -626,20 +613,23 @@ class Live(Thread):
         self.pow_queue = pow_queue
         self.except_queue = except_queue
         self.params_queue = params_queue
+        self.status = [str(i) for i in self.state]
 
     def run(self):
-        for p in range(1,5):
+        for p in range(4):
             key.conttrig(self.device, p, 1)
-        while True in self.state:
+            key.setwav(self.device, p, self.params[p]['wavelength'])
+            key.setatime(self.device, p, self.params[p]['average'])
+            key.setrange(self.device, p, self.params[p]['range'])
+            key.setunit(self.device, p, self.params[p]['unit'])
+        while 'True' in self.status:
             try:
                 stat = self.stat_queue.get_nowait()
-                # stat = stat.split(',')
-                self.state = stat
+                self.status = [str(i) for i in stat]
             except queue.Empty:
                 pass
             try:
                 para = self.params_queue.get_nowait()
-                para = para.split(',')
                 key.setwav(self.device, para[1], para[0]['wavelength'])
                 key.setatime(self.device, para[1], para[0]['average'])
                 key.setrange(self.device, para[1], para[0]['range'])
@@ -647,8 +637,8 @@ class Live(Thread):
             except queue.Empty:
                 pass
             try:
+                time.sleep(0.1)
                 readpow = key.readpow(self.device)
-                readpow = round(util.try_parse_float(readpow), 3)
                 self.pow_queue.put_nowait(readpow)
             except Exception as e:
                 self.except_queue.put('N7744A timed out')
