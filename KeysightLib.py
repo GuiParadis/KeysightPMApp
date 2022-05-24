@@ -1,5 +1,4 @@
 import utilities as util
-import math
 
 
 def setunit(device, pnum, unit):
@@ -16,7 +15,7 @@ def setrange(device, pnum, powrange):
         device.write(':SENSe' + str(pnum+1) + ':POWer:RANGe:AUTO 1')
     else:
         device.write(':SENSe' + str(pnum+1) + ':POWer:RANGe:AUTO 0')
-        device.write(':SENSe' + str(pnum+1) + ':POWer:RANGe: ' + str(powrange))
+        device.write(':SENSe' + str(pnum+1) + ':POWer:RANGe ' + str(powrange))
 
 
 def setwav(device, pnum, wav):
@@ -34,17 +33,48 @@ def setatime(device, pnum, atime):
 
 
 def dark(device, pnum):
-    device.write(':SENSe' + str(pnum+1) + ':CORRection:COLLect:ZERO')
-    util.WaitOperationComplete(device)
+    if pnum != 'All':
+        device.timeout = 20000
+        device.write(':SENSe' + str(pnum+1) + ':CORRection:COLLect:ZERO')
+        if util.WaitOperationComplete(device):
+            device.timeout = 10000
+            pass
+    else:
+        device.timeout = 70000
+        device.write(':SENSe:CORRection:COLLect:ZERO:ALL')
+        if util.WaitOperationComplete(device):
+            device.timeout = 10000
+            pass
 
 
 def readpow(device):
-    # readpow = {'mW': '', 'dBm': ''}
-    # read = device.query_binary_values(':FETCh:POWer:ALL?')
     read = [i for i in device.query_binary_values(':FETCh:POWer:ALL?') if i != 0]
-    # readpow['dBm'] = [10 * math.log10(1000 * i) for i in read]
     return read
 
 
 def conttrig(device, pnum, stat):
     device.write(':INITiate' + str(pnum+1) + ':CONTinuous ' + str(stat))
+
+
+def getip(device):
+    try:
+        ip = device.query(':SYSTem:COMMunicate:ETHernet:IPADdress:CURRent?')
+        ip = ip.lstrip('"').rstrip('"')
+        return ip
+    except Exception as e:
+        return 'No IP address available'
+
+
+def setmode(device, pnum, mode):
+    device.write(':SENSe' + str(pnum+1) + ':POWer:REFerence:STATe ' + str(mode))
+
+
+def reference(device, pnum, init=False):
+    if init:
+        device.write(':SENSe' + str(pnum+1) + ':POWer:REFerence TOREF,0DBM')
+    else:
+        setmode(device, pnum, '0')
+        read = readpow(device)
+        device.write(':SENSe' + str(pnum+1) + ':POWer:REFerence TOREF,' + str(read[pnum]) + 'DBM')
+        setmode(device, pnum, '1')
+
