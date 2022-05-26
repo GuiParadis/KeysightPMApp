@@ -1,12 +1,8 @@
 import queue
-import utilities as util
-import logging
 import pyvisa as vs
 import tkinter as tk
 from tkinter import ttk
-from tkinter import filedialog
 from tkinter import *
-from tkinter.ttk import *
 import time
 import KeysightLib as key
 from threading import Thread
@@ -35,6 +31,7 @@ class App(tk.Tk):
         self.darkall_btn = None
         self.ip_btn = None
         self.ip_entry = None
+        self.stop_btn = None
 
         self.wav850_btn = []
         self.wav1310_btn = []
@@ -95,8 +92,8 @@ class App(tk.Tk):
         self.setup_frame = self.create_setup_frame()
         self.setup_frame.grid(column=0, row=0, columnspan=2, sticky=tk.NSEW, padx=2, pady=8)
         self.setup_device_usb()
-        if self.instrument is not None:
-            self.getip(self.instrument)
+        # if self.instrument is not None:
+        #     self.getip(self.instrument)
 
     def create_powermeter_frame(self, pownum):
         frame = ttk.LabelFrame(self, text='Powermeter '+str(pownum+1))
@@ -134,23 +131,23 @@ class App(tk.Tk):
         self.wav_entry.append(wav_entry)
 
         # Preset wavelength buttons
-        wav850_btn = ttk.Button(frame, text='850nm', style='big.TButton', command=lambda: self.setwav(pownum, '850'))
+        wav850_btn = ttk.Button(frame, text='850', style='big.TButton', command=lambda: self.setwav(pownum, '850'))
         wav850_btn.grid(column=0, row=2)
         wav850_btn['state'] = tk.DISABLED
         self.wav850_btn.append(wav850_btn)
-        wav1310_btn = ttk.Button(frame, text='1310nm', style='big.TButton', command=lambda: self.setwav(pownum, '1310'))
+        wav1310_btn = ttk.Button(frame, text='1310', style='big.TButton', command=lambda: self.setwav(pownum, '1310'))
         wav1310_btn.grid(column=1, row=2)
         wav1310_btn['state'] = tk.DISABLED
         self.wav1310_btn.append(wav1310_btn)
-        wav1490_btn = ttk.Button(frame, text='1490nm', style='big.TButton', command=lambda: self.setwav(pownum, '1490'))
+        wav1490_btn = ttk.Button(frame, text='1490', style='big.TButton', command=lambda: self.setwav(pownum, '1490'))
         wav1490_btn.grid(column=2, row=2)
         wav1490_btn['state'] = tk.DISABLED
         self.wav1490_btn.append(wav1490_btn)
-        wav1550_btn = ttk.Button(frame, text='1550nm', style='big.TButton', command=lambda: self.setwav(pownum, '1550'))
+        wav1550_btn = ttk.Button(frame, text='1550', style='big.TButton', command=lambda: self.setwav(pownum, '1550'))
         wav1550_btn.grid(column=3, row=2)
         wav1550_btn['state'] = tk.DISABLED
         self.wav1550_btn.append(wav1550_btn)
-        wav1625_btn = ttk.Button(frame, text='1625nm', style='big.TButton', command=lambda: self.setwav(pownum, '1625'))
+        wav1625_btn = ttk.Button(frame, text='1625', style='big.TButton', command=lambda: self.setwav(pownum, '1625'))
         wav1625_btn.grid(column=4, row=2)
         wav1625_btn['state'] = tk.DISABLED
         self.wav1625_btn.append(wav1625_btn)
@@ -259,6 +256,12 @@ class App(tk.Tk):
         self.darkall_btn = ttk.Button(frame, text='Dark All PM', style='bbig.TButton', width=20, command=lambda: self.dark('All'))
         self.darkall_btn.grid(column=2, row=1, sticky=tk.EW)
         self.darkall_btn['state'] = tk.DISABLED
+
+        # Stop button to kill thread
+        self.stop_btn = ttk.Button(frame, text='Stop Live reading', style='bbig.TButton', width=20, command=lambda: self.stop())
+        self.stop_btn.grid(column=2, row=2, sticky=tk.EW)
+        self.stop_btn['state'] = tk.DISABLED
+
         for widget in frame.winfo_children():
             widget.grid(padx=1, pady=2)
 
@@ -441,12 +444,16 @@ class App(tk.Tk):
             self.avg_entry[pnum].bind("<Button-1>", self.on_click)
             self.avg_entry[pnum].bind('<Return>', lambda event: self.closeavg(pnum))
             self.params[pnum]['average'] = self.avg_entry[pnum].get().replace(' ', '')
+            if self.params[pnum]['mode'] != 0:
+                self.params[pnum]['mode'] = 1
             self.params_queue.put_nowait([self.params[pnum], pnum])
             win.destroy()
         else:
             self.avg_entry[pnum].bind("<Button-1>", self.on_click)
             self.avg_entry[pnum].bind('<Return>', lambda event: self.closeavg(pnum))
             self.params[pnum]['average'] = self.avg_entry[pnum].get().replace(' ', '')
+            if self.params[pnum]['mode'] != 0:
+                self.params[pnum]['mode'] = 1
             self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def closerange(self, pnum, win=None):
@@ -459,6 +466,8 @@ class App(tk.Tk):
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get()
+                if self.params[pnum]['mode'] != 0:
+                    self.params[pnum]['mode'] = 1
                 self.params_queue.put_nowait([self.params[pnum], pnum])
             else:
                 self.range_entry[pnum].insert(0, self.rangelist.get(self.rangelist.curselection()))
@@ -467,6 +476,8 @@ class App(tk.Tk):
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get().replace(' ', '')
+                if self.params[pnum]['mode'] != 0:
+                    self.params[pnum]['mode'] = 1
                 self.params_queue.put_nowait([self.params[pnum], pnum])
             win.destroy()
         else:
@@ -476,6 +487,8 @@ class App(tk.Tk):
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get()
+                if self.params[pnum]['mode'] != 0:
+                    self.params[pnum]['mode'] = 1
                 self.params_queue.put_nowait([self.params[pnum], pnum])
             else:
                 self.range[pnum].set('Manual Range')
@@ -483,6 +496,8 @@ class App(tk.Tk):
                 self.range_entry[pnum].bind("<Button-1>", self.on_click)
                 self.range_entry[pnum].bind('<Return>', lambda event: self.closerange(pnum))
                 self.params[pnum]['range'] = self.range_entry[pnum].get().replace(' ', '')
+                if self.params[pnum]['mode'] != 0:
+                    self.params[pnum]['mode'] = 1
                 self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def cancel(self, win):
@@ -510,6 +525,8 @@ class App(tk.Tk):
         self.wav_entry[pnum].bind("<Button-1>", self.on_click)
         self.wav_entry[pnum].bind('<Return>', lambda event: self.setwav(pnum, self.wav_entry[pnum].get()))
         self.params[pnum]['wavelength'] = wav
+        if self.params[pnum]['mode'] != 0:
+            self.params[pnum]['mode'] = 1
         self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def setatime(self, pnum, atime):
@@ -521,6 +538,8 @@ class App(tk.Tk):
         self.avg_entry[pnum].bind("<Button-1>", self.on_click)
         self.avg_entry[pnum].bind('<Return>', lambda event: self.setatime(pnum, self.avg_entry[pnum].get()))
         self.params[pnum]['average'] = atime
+        if self.params[pnum]['mode'] != 0:
+            self.params[pnum]['mode'] = 1
         self.params_queue.put_nowait([self.params[pnum], pnum])
 
     def dark(self, pnum):
@@ -621,16 +640,34 @@ class App(tk.Tk):
                 try:
                     e = self.except_queue.get_nowait()
                     if e[1]:
-                        self.deviceip.set(str(e))
+                        self.deviceip.set(str(e[0]))
                         self.deviceip_lbl.configure(foreground='red')
                         self.instrumentip = None
                     else:
-                        self.device.set(str(e))
+                        self.device.set(str(e[0]))
                         self.device_lbl.configure(foreground='red')
                         self.instrument = None
                     for p in range(4):
                         self.state[p] = False
-                    pass
+                        if self.instrument or self.instrumentip:
+                            self.start_btn[p]['state'] = tk.NORMAL
+                        else:
+                            self.start_btn[p]['state'] = tk.DISABLED
+                        self.wav850_btn[p]['state'] = tk.DISABLED
+                        self.wav1310_btn[p]['state'] = tk.DISABLED
+                        self.wav1490_btn[p]['state'] = tk.DISABLED
+                        self.wav1550_btn[p]['state'] = tk.DISABLED
+                        self.wav1625_btn[p]['state'] = tk.DISABLED
+                        self.avg_btn[p]['state'] = tk.DISABLED
+                        self.range_btn[p]['state'] = tk.DISABLED
+                        self.W_btn[p]['state'] = tk.DISABLED
+                        self.dbm_btn[p]['state'] = tk.DISABLED
+                        self.db_btn[p]['state'] = tk.DISABLED
+                        self.dark_btn[p]['state'] = tk.DISABLED
+                        self.ref_btn[p]['state'] = tk.DISABLED
+                        self.play_btn[p]['state'] = tk.DISABLED
+                        self.stop_btn['state'] = tk.DISABLED
+                        self.powerread[p].set('---.---')
                 except queue.Empty:
                     pass
                 try:
@@ -668,7 +705,39 @@ class App(tk.Tk):
                 except queue.Empty:
                     self.after(10, lambda: self.monitor(thread))
             else:
-                pass
+                try:
+                    e = self.except_queue.get_nowait()
+                    if e[1]:
+                        self.deviceip.set(str(e[0]))
+                        self.deviceip_lbl.configure(foreground='red')
+                        self.instrumentip = None
+                    else:
+                        self.device.set(str(e[0]))
+                        self.device_lbl.configure(foreground='red')
+                        self.instrument = None
+                    for p in range(4):
+                        self.state[p] = False
+                        if self.instrument or self.instrumentip:
+                            self.start_btn[p]['state'] = tk.NORMAL
+                        else:
+                            self.start_btn[p]['state'] = tk.DISABLED
+                        self.wav850_btn[p]['state'] = tk.DISABLED
+                        self.wav1310_btn[p]['state'] = tk.DISABLED
+                        self.wav1490_btn[p]['state'] = tk.DISABLED
+                        self.wav1550_btn[p]['state'] = tk.DISABLED
+                        self.wav1625_btn[p]['state'] = tk.DISABLED
+                        self.avg_btn[p]['state'] = tk.DISABLED
+                        self.range_btn[p]['state'] = tk.DISABLED
+                        self.W_btn[p]['state'] = tk.DISABLED
+                        self.dbm_btn[p]['state'] = tk.DISABLED
+                        self.db_btn[p]['state'] = tk.DISABLED
+                        self.dark_btn[p]['state'] = tk.DISABLED
+                        self.ref_btn[p]['state'] = tk.DISABLED
+                        self.play_btn[p]['state'] = tk.DISABLED
+                        self.stop_btn['state'] = tk.DISABLED
+                        self.powerread[p].set('---.---')
+                except queue.Empty:
+                    pass
 
     def start(self, pnum):
         self.wav850_btn[pnum]['state'] = tk.DISABLED
@@ -685,6 +754,7 @@ class App(tk.Tk):
         self.ref_btn[pnum]['state'] = tk.NORMAL
         self.start_btn[pnum]['state'] = tk.DISABLED
         self.play_btn[pnum]['state'] = tk.NORMAL
+        self.stop_btn['state'] = tk.NORMAL
         self.state[pnum] = True
         self.setwav(pnum, self.params[pnum]['wavelength'])
         self.setunit(pnum, self.params[pnum]['unit'])
@@ -709,6 +779,27 @@ class App(tk.Tk):
             self.live_thread.start()
             self.monitor(self.live_thread)
 
+    def stop(self):
+        for p in range(4):
+            self.state[p] = False
+            self.start_btn[p]['state'] = tk.NORMAL
+            self.wav850_btn[p]['state'] = tk.DISABLED
+            self.wav1310_btn[p]['state'] = tk.DISABLED
+            self.wav1490_btn[p]['state'] = tk.DISABLED
+            self.wav1550_btn[p]['state'] = tk.DISABLED
+            self.wav1625_btn[p]['state'] = tk.DISABLED
+            self.avg_btn[p]['state'] = tk.DISABLED
+            self.range_btn[p]['state'] = tk.DISABLED
+            self.W_btn[p]['state'] = tk.DISABLED
+            self.dbm_btn[p]['state'] = tk.DISABLED
+            self.db_btn[p]['state'] = tk.DISABLED
+            self.dark_btn[p]['state'] = tk.DISABLED
+            self.ref_btn[p]['state'] = tk.DISABLED
+            self.play_btn[p]['state'] = tk.DISABLED
+            self.stop_btn['state'] = tk.DISABLED
+            self.powerread[p].set('---.---')
+        self.stat_queue.put(self.state)
+
     def pauseplay(self, pnum):
         if not any(self.state):
             self.state[pnum] = not self.state[pnum]
@@ -725,6 +816,7 @@ class App(tk.Tk):
                 except queue.Empty:
                     continue
                 self.pow_queue.task_done()
+            self.stop_btn['state'] = tk.NORMAL
             self.live_thread = Live(device, self.state, self.params, self.stat_queue, self.pow_queue, self.except_queue, self.params_queue, ip, True)
             self.live_thread.start()
             self.monitor(self.live_thread)
@@ -748,15 +840,20 @@ class Live(Thread):
         self.status = [str(i) for i in self.state]
 
     def run(self):
-        for p in range(4):
-            key.conttrig(self.device, p, 1)
-            key.setwav(self.device, p, self.params[p]['wavelength'])
-            key.setatime(self.device, p, self.params[p]['average'])
-            key.setrange(self.device, p, self.params[p]['range'])
-            key.setunit(self.device, p, self.params[p]['unit'])
-            key.setmode(self.device, p, self.params[p]['mode'])
-            if not self.pause:
-                key.reference(self.device, p, True)
+        try:
+            for p in range(4):
+                key.conttrig(self.device, p, 1)
+                key.setwav(self.device, p, self.params[p]['wavelength'])
+                key.setatime(self.device, p, self.params[p]['average'])
+                key.setrange(self.device, p, self.params[p]['range'])
+                key.setunit(self.device, p, self.params[p]['unit'])
+                key.setmode(self.device, p, self.params[p]['mode'])
+                if not self.pause:
+                    key.reference(self.device, p, True)
+        except Exception as e:
+            self.except_queue.put(['N7744A timed out', self.ip])
+            self.status = ['False', 'False', 'False', 'False']
+            pass
         while 'True' in self.status:
             try:
                 stat = self.stat_queue.get_nowait()
@@ -774,6 +871,9 @@ class Live(Thread):
                     key.reference(self.device, para[1])
             except queue.Empty:
                 pass
+            except Exception as e:
+                self.except_queue.put(['N7744A timed out', self.ip])
+                self.status = ['False', 'False', 'False', 'False']
             try:
                 if not self.ip:
                     time.sleep(0.05)
